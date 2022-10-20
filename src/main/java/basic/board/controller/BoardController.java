@@ -1,16 +1,17 @@
 package basic.board.controller;
 
 import basic.board.domain.dto.BoardDto;
+import basic.board.domain.dto.BoardDto2;
 import basic.board.service.BoardService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.annotations.Fetch;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.Banner;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.ModelAndView;
 
 import java.util.List;
 
@@ -23,14 +24,35 @@ public class BoardController {
     private BoardService boardService;
 
     /**
-     * 게시물 리스트 보기
+     * 게시물 리스트 보기(복잡함)
      */
     @GetMapping("/list")
-    public String boardList(Model model) {
-        List<BoardDto> boardList = boardService.getBoardList();
+    public String boardList(Model model, @RequestParam(value = "page", defaultValue = "1") Integer pageNum) {
+        List<BoardDto> boardList = boardService.getBoardList(pageNum);
+        Integer[] pageList = boardService.getPageList(pageNum);
+
 
         model.addAttribute("boardList", boardList);
+        model.addAttribute("pageList", pageList);
+
         return "board/list.html";
+    }
+
+    /**
+     * 게시물 리스트 보기 Ver2
+     */
+    @GetMapping("/list-ver2")
+    public String boardList(Model model
+            , @PageableDefault(size = 5, sort = "createdDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<BoardDto2> boardDtoList = boardService.pageList(pageable);
+
+        int totalPages = boardDtoList.getTotalPages(); //총 페이지 수
+        boardDtoList.previousOrFirstPageable().getPageNumber();
+
+        model.addAttribute("boardList", boardDtoList);
+        model.addAttribute("totalPages", totalPages);
+
+        return "board/list2.html";
     }
 
     /**
@@ -88,6 +110,24 @@ public class BoardController {
     /**
      * 게시글 삭제
      */
+    @DeleteMapping("/post/{no}")
+    public String delete(@PathVariable("no") Long no) {
+        boardService.deletePost(no);
+
+        return "redirect:/board/list";
+    }
+
+    /**
+     * 검색
+     */
+    @GetMapping("/search")
+    public String search(@RequestParam(value = "keyword") String keyword, Model model) {
+        List<BoardDto> boardDtoList = boardService.searchPosts(keyword);
+
+        model.addAttribute("boardList", boardDtoList);
+
+        return "board/list.html";
+    }
 
 
 }
